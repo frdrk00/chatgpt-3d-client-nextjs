@@ -6,9 +6,8 @@ import config from '../config/config'
 import state from '../store'
 import { download } from '../assets'
 import { downloadCanvasToImage, reader } from '../config/helpers'
-import { fadeAnimation, slideAnimation } from '../config/motion'
 import { EditorTabs, FilterTabs, DecalTypes } from '../config/constants'
-
+import { fadeAnimation, slideAnimation } from '../config/motion'
 import {
   AIPicker,
   ColorPicker,
@@ -19,9 +18,12 @@ import {
 
 const Customizer = () => {
   const snap = useSnapshot(state)
+
   const [file, setFile] = useState('')
+
   const [prompt, setPrompt] = useState('')
   const [generatingImg, setGeneratingImg] = useState(false)
+
   const [activeEditorTab, setActiveEditorTab] = useState('')
   const [activeFilterTab, setActiveFilterTab] = useState({
     logoShirt: true,
@@ -44,17 +46,30 @@ const Customizer = () => {
             handleSubmit={handleSubmit}
           />
         )
-
       default:
         return null
     }
   }
 
   const handleSubmit = async (type) => {
-    if (!prompt) return aler('Please enter a prompt')
+    if (!prompt) return alert('Please enter a prompt')
 
     try {
-      // call out backend to generate an ai image!
+      setGeneratingImg(true)
+
+      const response = await fetch('http://localhost:8080/api/v1/dalle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+        }),
+      })
+
+      const data = await response.json()
+
+      handleDecals(type, `data:image/png;base64,${data.photo}`)
     } catch (error) {
       alert(error)
     } finally {
@@ -65,9 +80,10 @@ const Customizer = () => {
 
   const handleDecals = (type, result) => {
     const decalType = DecalTypes[type]
+
     state[decalType.stateProperty] = result
 
-    if (!activeFilterTab[decalType].filterTab) {
+    if (!activeFilterTab[decalType.filterTab]) {
       handleActiveFilterTab(decalType.filterTab)
     }
   }
@@ -79,9 +95,11 @@ const Customizer = () => {
         break
       case 'stylishShirt':
         state.isFullTexture = !activeFilterTab[tabName]
+        break
       default:
-        state.isFullTexture = true
-        state.isLogoTexture = false
+        state.isLogoTexture = true
+        state.isFullTexture = false
+        break
     }
 
     // after setting the state, activeFilterTab is updated
@@ -144,6 +162,7 @@ const Customizer = () => {
             {FilterTabs.map((tab) => (
               <Tab
                 key={tab.name}
+                tab={tab}
                 isFilterTab
                 isActiveTab={activeFilterTab[tab.name]}
                 handleClick={() => handleActiveFilterTab(tab.name)}
